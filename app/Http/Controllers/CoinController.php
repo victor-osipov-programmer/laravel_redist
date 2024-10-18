@@ -47,19 +47,33 @@ class CoinController extends Controller
             'data' => $coin
         ], Response::HTTP_CREATED);
     }
-    function buy(BuyCoinRequest $request)
+
+    function buy(BuyCoinRequest $request, Coin $coin)
     {
         
     }
-    function sell(SellCoinRequest $request)
+
+    function sell(SellCoinRequest$request, Coin $coin)
     {
         
     }
-    function buy_to_bank(BuyToBankCoinRequest $request)
+
+    function buy_to_bank(BuyToBankCoinRequest $request, Coin $coin)
     {
+        $data = $request->validated();
+        if (!isset($data['additional_coins'])) $data['additional_coins'] = false;
+
+        if ($data['additional_coins']) {
+            $price_coins = $data['total_coins'] * $coin->price_buy_additional_coin;
+        } else {
+            $price_coins = $data['total_coins'] * $coin->price_buy_coin;
+        }
+
+
         
     }
-    function sell_to_bank(SellToBankCoinRequest $request)
+
+    function sell_to_bank(SellToBankCoinRequest $request, Coin $coin)
     {
         
     }

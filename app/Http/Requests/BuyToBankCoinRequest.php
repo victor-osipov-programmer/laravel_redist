@@ -22,7 +22,8 @@ class BuyToBankCoinRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'total_coins' => 'required|integer',
+            'additional_coins' => 'nullable|boolean',
         ];
     }
 }

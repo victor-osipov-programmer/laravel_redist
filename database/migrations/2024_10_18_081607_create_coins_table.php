@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedInteger('buy_to_bank_coins');
             $table->unsignedInteger('sale_to_bank_coins');
 
+            $table->unsignedInteger('current_cycle')->default(1);
             $table->unsignedInteger('cycle')->default(config('global.day_in_seconds'));
             $table->unsignedInteger('cycles')->nullable()->default(null);
 

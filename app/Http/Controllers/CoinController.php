@@ -101,6 +101,29 @@ class CoinController extends Controller
 
     function sell_to_bank(SellToBankCoinRequest $request, Coin $coin)
     {
+        $data = $request->validated();
+        $user = $request->user(); 
+        $user_pivot = $user->coins->find($coin->id)->pivot;
+        $price_coins = $data['number_coins'] * $coin->price_sale_coin;
+
+        if ($coin['income'] < $coin['expenses']) {
+            throw new AccessDeniedHttpException('income should be more than expenses');
+        }
         
+        DB::transaction(function () use($user, $coin, $data, $user_pivot, $price_coins) {
+            $user->coins()->updateExistingPivot($coin->id, [
+                'coins' => $user_pivot->coins - $data['number_coins'],
+            ]);
+            $user->update([
+                'balance' => $user->balance + $price_coins
+            ]);
+            $coin->update([
+                'sale_to_bank_coins' => $coin->sale_to_bank_coins - $data['number_coins']
+            ]);
+        });
+
+        return [
+            'message' => 'Success sell of coins'
+        ];
     }
 }

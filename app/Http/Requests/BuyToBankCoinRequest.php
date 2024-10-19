@@ -2,28 +2,30 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Coin;
+use App\Models\User;
+use App\Rules\RestrictionsNumberCoins;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BuyToBankCoinRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
+    
+    public function rules(User $user): array
     {
         return [
-            'total_coins' => 'required|integer',
-            'additional_coins' => 'nullable|boolean',
+            'number_coins' => [
+                'required', 
+                'integer',
+                new RestrictionsNumberCoins($this->route('coin'))
+            ],
+            'additional_coins' => 'required|boolean',
         ];
     }
 }

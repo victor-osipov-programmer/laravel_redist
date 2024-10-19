@@ -11,6 +11,8 @@ use App\Http\Requests\StoreCoinRequest;
 use App\Http\Requests\UpdateCoinRequest;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class CoinController extends Controller
 {
@@ -43,9 +45,9 @@ class CoinController extends Controller
         });
         
         return response([
-            'message' => 'Created',
+            'message' => 'Created coin',
             'data' => $coin
-        ], Response::HTTP_CREATED);
+        ], 201);
     }
 
     function buy(BuyCoinRequest $request, Coin $coin)
@@ -61,16 +63,40 @@ class CoinController extends Controller
     function buy_to_bank(BuyToBankCoinRequest $request, Coin $coin)
     {
         $data = $request->validated();
-        if (!isset($data['additional_coins'])) $data['additional_coins'] = false;
+        $user = $request->user(); 
+        $user_pivot = $user->coins->find($coin->id)->pivot;
 
         if ($data['additional_coins']) {
-            $price_coins = $data['total_coins'] * $coin->price_buy_additional_coin;
+            $price_coins = $data['number_coins'] * $coin->price_buy_additional_coin;
+            $text_max_buy_coins_cycle = 'max_buy_additional_coins_cycle';
+            $text_max_buy_coins_game = 'max_buy_additional_coins_game';
         } else {
-            $price_coins = $data['total_coins'] * $coin->price_buy_coin;
+            $price_coins = $data['number_coins'] * $coin->price_buy_coin;
+            $text_max_buy_coins_cycle = 'max_buy_coins_cycle';
+            $text_max_buy_coins_game = 'max_buy_coins_game';
         }
 
-
+        if ($user->balance < $price_coins) {
+            throw new AccessDeniedHttpException("The price_coins is $price_coins, your balance is $user->balance");
+        }
         
+        DB::transaction(function () use($user, $coin, $data, $user_pivot, $text_max_buy_coins_cycle, $text_max_buy_coins_game, $price_coins) {
+            $user->update([
+                'balance' => $user->balance - $price_coins
+            ]);
+            $user->coins()->updateExistingPivot($coin->id, [
+                'coins' => $user_pivot->coins + $data['number_coins'],
+                $text_max_buy_coins_cycle => $user_pivot->$text_max_buy_coins_cycle - $data['number_coins'],
+                $text_max_buy_coins_game => $user_pivot->$text_max_buy_coins_game - $data['number_coins']
+            ]);
+            $coin->update([
+                'buy_to_bank_coins' => $coin->buy_to_bank_coins - $data['number_coins']
+            ]);
+        });
+
+        return [
+            'message' => 'Success buy of coins'
+        ];
     }
 
     function sell_to_bank(SellToBankCoinRequest $request, Coin $coin)

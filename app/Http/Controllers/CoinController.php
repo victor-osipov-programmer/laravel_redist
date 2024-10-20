@@ -9,6 +9,8 @@ use App\Http\Requests\SellToBankCoinRequest;
 use App\Models\Coin;
 use App\Http\Requests\StoreCoinRequest;
 use App\Http\Requests\UpdateCoinRequest;
+use App\Models\Order;
+use Exception;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -52,12 +54,115 @@ class CoinController extends Controller
 
     function buy(BuyCoinRequest $request, Coin $coin)
     {
+        $data = $request->validated();
+        $user = $request->user();
+        $price_coins = $data['number_coins'] * $data['price_coin'];
+
+        if ($user->balance < $price_coins) {
+            throw new AccessDeniedHttpException("The price_coins is $price_coins, your balance is $user->balance");
+        }
+
+        $order = null;
+        DB::transaction(function () use($data, $user, $coin, $price_coins, &$order) {
+            $order = Order::create([
+                'coin_id' => $coin->id,
+                'user_id' => $user->id,
+                'type' => 'buy',
+                'number_coins' => $data['number_coins'],
+                'price_coin' => $data['price_coin'],
+            ]);
+            $user->update([
+                'balance' => $user->balance - $price_coins
+            ]);
+        });
         
+        return $this->execute_buy_order($order, $coin);
+        
+        // return [
+        //     'message' => 'Created buy order',
+        //     'data' => $order
+        // ];
     }
 
-    function sell(SellCoinRequest$request, Coin $coin)
-    {
+    function execute_buy_order(Order $order, $coin) {
+        $orders = Order::where('price_coin', '<=', $order->price_coin)
+        ->where('type', 'sell')
+        ->where('coin_id', $coin->id)->get();
         
+        return $orders;
+    }
+
+    function sell(SellCoinRequest $request, Coin $coin)
+    {
+        $data = $request->validated();
+        $user = $request->user();
+        $price_coins = $data['number_coins'] * $data['price_coin'];
+
+        if ($user->balance < $price_coins) {
+            throw new AccessDeniedHttpException("The price_coins is $price_coins, your balance is $user->balance");
+        }
+
+        $sell_order = null;
+        DB::transaction(function () use($data, $user, $coin, $price_coins, &$sell_order) {
+            $sell_order = Order::create([
+                'coin_id' => $coin->id,
+                'user_id' => $user->id,
+                'type' => 'sell',
+                'number_coins' => $data['number_coins'],
+                'price_coin' => $data['price_coin'],
+            ]);
+            $user->coins()->updateExistingPivot($coin->id, [
+                'coins' => $user->coins->find($coin->id)->pivot->coins - $data['number_coins']
+            ]);
+        });
+        
+        return $this->execute_sell_order($sell_order, $coin);
+
+        // return [
+        //     'message' => 'Created sell order'
+        // ];
+    }
+
+
+    function execute_sell_order(Order $sell_order, $coin) {
+        $buy_orders = Order::where('type', 'buy')
+        ->where('price_coin', '>=', $sell_order->price_coin)
+        ->where('coin_id', $coin->id)
+        ->orderByDesc('price_coins')
+        ->orderByDesc('user_donations')
+        ->get();
+
+        foreach ($buy_orders as $buy_order) {
+            try {
+                DB::beginTransaction();
+                $coins_turnover = min($sell_order->number_coins, $buy_order->number_coins);
+
+                $sell_order->update([
+                    'number_coins' => $sell_order->number_coins - $coins_turnover
+                ]);
+                $buy_order->update([
+                    'number_coins' => $buy_order->number_coins - $coins_turnover
+                ]);
+
+                // $sell_order->user->update([
+                //     'balance' => $sell_order->user->balance + 
+                // ]);
+
+
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+            }
+        }
+    }
+
+    function test(Coin $coin) {
+        $sell_order = Order::where('type', 'sell')->orderBy('price_coin')->first();
+
+        return [
+            'sell_order' => $sell_order,
+            'orders' => $this->execute_sell_order($sell_order, $coin)
+        ];
     }
 
     function buy_to_bank(BuyToBankCoinRequest $request, Coin $coin)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SellCoinRequest extends FormRequest
@@ -22,7 +23,26 @@ class SellCoinRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'number_coins' => [
+                'required', 
+                'integer',
+                'min:1',
+                function ($attribute, $value, Closure $fail)  {
+                    $user = $this->user();
+                    $coin = $this->route('coin');
+
+                    if ($user->coins->find($coin->id)->pivot->coins < $value) {
+                        $coins = $user->coins->find($coin->id)->pivot->coins;
+
+                        $fail("You have only $coins coins on your balance");
+                    }
+                }
+            ],
+            'price_coin' => [
+                'required',
+                'decimal:0,2',
+                'min:0.01'
+            ]
         ];
     }
 }

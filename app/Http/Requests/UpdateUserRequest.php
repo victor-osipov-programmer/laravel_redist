@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
-class BuyCoinRequest extends FormRequest
+class UpdateUserRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -23,19 +22,7 @@ class BuyCoinRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'number_coins' => [
-                'required', 
-                'integer',
-                'min:1',
-                // function ($attribute, $value, Closure $fail) {
-                    
-                // }
-            ],
-            'price_coin' => [
-                'required',
-                'decimal:0,2',
-                'min:0.01'
-            ]
+            //
         ];
     }
 }

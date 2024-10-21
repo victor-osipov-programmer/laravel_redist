@@ -108,6 +108,7 @@ class CoinController extends Controller
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
                 if ($sell_order_number_coins == 0) {
+                    $sell_order->table = 'orders';
                     $sell_order->delete();
                 } else {
                     $sell_order->update([
@@ -117,6 +118,7 @@ class CoinController extends Controller
                 
                 $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
                 if ($buy_order_number_coins == 0) {
+                    $buy_order->table = 'orders';
                     $buy_order->delete();
                 } else {
                     $buy_order->update([
@@ -129,7 +131,7 @@ class CoinController extends Controller
                 $coins_income += $coins_turnover;
                 DB::commit();
 
-                if ($sell_order_number_coins == 0) {
+                if ($buy_order_number_coins == 0) {
                     return [
                         'message' => 'Order was completed successfully',
                         'coins_income' => $coins_income,

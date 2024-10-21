@@ -80,16 +80,16 @@ class CoinController extends Controller
     }
 
     function execute_buy_order(Order $buy_order, $coin) {
-        $sell_orders = DB::table('view_orders')
-        // ->select('id')
+        $view_order = new Order;
+        $view_order->table = 'view_orders';
+        
+        $sell_orders = $view_order
         ->where('type', 'sell')
         ->where('price_coin', '<=', $buy_order->price_coin)
         ->where('coin_id', $coin->id)
         ->orderBy('price_coin')
         ->orderByDesc('user_donations')
         ->get();
-        
-        $sell_orders = Order::find($sell_orders->map(fn ($order) => $order->id))->reverse();
         $coins_income = 0;
 
 
@@ -103,7 +103,7 @@ class CoinController extends Controller
                     'balance' => $sell_order->user->balance + $price_coins
                 ]);
                 $buy_order->user->coins()->updateExistingPivot($coin->id, [
-                    'coins' => $buy_order->user->coins->find($coin->id)->coins + $coins_turnover
+                    'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
                 ]);
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
@@ -132,7 +132,8 @@ class CoinController extends Controller
                 if ($sell_order_number_coins == 0) {
                     return [
                         'message' => 'Order was completed successfully',
-                        'coins_turnover' => $coins_turnover
+                        'coins_income' => $coins_income,
+                        'sell_orders' => $sell_orders
                     ];
                 }
             } catch (Exception $e) {
@@ -143,7 +144,8 @@ class CoinController extends Controller
 
         return [
             'message' => 'Created buy order',
-            'orders' => $sell_orders
+            'coins_income' => $coins_income,
+            'sell_orders' => $sell_orders
         ];
     }
 
@@ -178,15 +180,17 @@ class CoinController extends Controller
 
 
     function execute_sell_order(Order $sell_order, $coin) {
-        $buy_orders = DB::table('view_orders')
-        ->select('id')
+        $view_order = new Order;
+        $view_order->table = 'view_orders';
+        
+        $buy_orders = $view_order
         ->where('type', 'buy')
         ->where('price_coin', '>=', $sell_order->price_coin)
         ->where('coin_id', $coin->id)
         ->orderByDesc('price_coin')
         ->orderByDesc('user_donations')
         ->get();
-        $buy_orders = Order::find($buy_orders->map(fn ($order) => $order->id));
+        $view_order->table = 'orders';
         $currency_income = 0;
 
 
@@ -200,11 +204,12 @@ class CoinController extends Controller
                     'balance' => $sell_order->user->balance + $price_coins
                 ]);
                 $buy_order->user->coins()->updateExistingPivot($coin->id, [
-                    'coins' => $buy_order->user->coins->find($coin->id)->coins + $coins_turnover
+                    'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
                 ]);
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
                 if ($sell_order_number_coins == 0) {
+                    $sell_order->table = 'orders';
                     $sell_order->delete();
                 } else {
                     $sell_order->update([
@@ -214,6 +219,7 @@ class CoinController extends Controller
                 
                 $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
                 if ($buy_order_number_coins == 0) {
+                    $buy_order->table = 'orders';
                     $buy_order->delete();
                 } else {
                     $buy_order->update([
@@ -229,7 +235,8 @@ class CoinController extends Controller
                 if ($sell_order_number_coins == 0) {
                     return [
                         'message' => 'Order was completed successfully',
-                        'currency_income' => $currency_income
+                        'currency_income' => $currency_income,
+                        'buy_orders' => $buy_orders
                     ];
                 }
             } catch (Exception $e) {
@@ -239,7 +246,9 @@ class CoinController extends Controller
         }
 
         return [
-            'message' => 'Created sell order'
+            'message' => 'Created sell order',
+            'currency_income' => $currency_income,
+            'buy_orders' => $buy_orders
         ];
     }
 

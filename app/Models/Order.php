@@ -8,7 +8,8 @@ class Order extends Model
 {
     protected $guarded = [];
 
-    public $table = 'view_orders';
+    // public $table = 'view_orders';
+    
     function user() {
         return $this->belongsTo(User::class, 'user_id');
     }

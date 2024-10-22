@@ -34,8 +34,14 @@ class SellCoinRequest extends FormRequest
                     if ($user->coins->find($coin->id)->pivot->coins < $value) {
                         $coins = $user->coins->find($coin->id)->pivot->coins;
 
-                        $fail("You have only $coins coins on your balance");
+                        $fail("Your coins balance is $coins, but you need $value");
                     }
+
+                    // $price_coins = $this->number_coins * $this->price_coin;
+
+                    // if ($user->balance < $price_coins) {
+                    //     $fail("Your balance is $user->balance, but you need $price_coins");
+                    // }
                 }
             ],
             'price_coin' => [

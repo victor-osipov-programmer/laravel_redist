@@ -58,11 +58,7 @@ class CoinController extends Controller
         $user = $request->user();
         $price_coins = $data['number_coins'] * $data['price_coin'];
 
-        if ($user->balance < $price_coins) {
-            throw new AccessDeniedHttpException("The price_coins is $price_coins, your balance is $user->balance");
-        }
-
-        $order = null;
+        $order = new Order;
         DB::transaction(function () use($data, $user, $coin, $price_coins, &$order) {
             $order = Order::create([
                 'coin_id' => $coin->id,
@@ -90,7 +86,7 @@ class CoinController extends Controller
         ->orderBy('price_coin')
         ->orderByDesc('user_donations')
         ->get();
-        $coins_income = 0;
+        $received_coins = 0;
 
 
         foreach ($sell_orders as $sell_order) {
@@ -98,7 +94,13 @@ class CoinController extends Controller
                 DB::beginTransaction();
                 $coins_turnover = min($sell_order->number_coins, $buy_order->number_coins);
                 $price_coins = $coins_turnover * $sell_order->price_coin;
-                
+                $commission = $price_coins * ($coin->commission / 100);
+                $price_coins -= $commission;
+
+                $coin->update([
+                    'income' => $coin->icome + $commission
+                ]);
+
                 $sell_order->user->update([
                     'balance' => $sell_order->user->balance + $price_coins
                 ]);
@@ -128,13 +130,13 @@ class CoinController extends Controller
 
                 
 
-                $coins_income += $coins_turnover;
+                $received_coins += $coins_turnover;
                 DB::commit();
 
                 if ($buy_order_number_coins == 0) {
                     return [
-                        'message' => 'Order was completed successfully',
-                        'coins_income' => $coins_income,
+                        'message' => 'Buy order completed',
+                        'received_coins' => $received_coins,
                         'sell_orders' => $sell_orders
                     ];
                 }
@@ -144,25 +146,20 @@ class CoinController extends Controller
             }
         }
 
-        return [
+        return response([
             'message' => 'Created buy order',
-            'coins_income' => $coins_income,
+            'received_coins' => $received_coins,
             'sell_orders' => $sell_orders
-        ];
+        ], 201);
     }
 
     function sell(SellCoinRequest $request, Coin $coin)
     {
         $data = $request->validated();
         $user = $request->user();
-        $price_coins = $data['number_coins'] * $data['price_coin'];
-
-        if ($user->balance < $price_coins) {
-            throw new AccessDeniedHttpException("The price_coins is $price_coins, your balance is $user->balance");
-        }
-
-        $sell_order = null;
-        DB::transaction(function () use($data, $user, $coin, $price_coins, &$sell_order) {
+        
+        $sell_order = new Order;
+        DB::transaction(function () use($data, $user, $coin, &$sell_order) {
             $sell_order = Order::create([
                 'coin_id' => $coin->id,
                 'user_id' => $user->id,
@@ -176,8 +173,6 @@ class CoinController extends Controller
         });
         
         return $this->execute_sell_order($sell_order, $coin);
-
-        
     }
 
 
@@ -192,8 +187,8 @@ class CoinController extends Controller
         ->orderByDesc('price_coin')
         ->orderByDesc('user_donations')
         ->get();
-        $view_order->table = 'orders';
-        $currency_income = 0;
+        $received_currency = 0;
+        $shared_commision = 0;
 
 
         foreach ($buy_orders as $buy_order) {
@@ -201,7 +196,13 @@ class CoinController extends Controller
                 DB::beginTransaction();
                 $coins_turnover = min($sell_order->number_coins, $buy_order->number_coins);
                 $price_coins = $coins_turnover * $buy_order->price_coin;
-                
+                $commission = $price_coins * ($coin->commission / 100);
+                $price_coins -= $commission;
+
+                $coin->update([
+                    'income' => $coin->icome + $commission
+                ]);
+
                 $sell_order->user->update([
                     'balance' => $sell_order->user->balance + $price_coins
                 ]);
@@ -230,14 +231,15 @@ class CoinController extends Controller
                 }
 
                 
-
-                $currency_income += $price_coins;
+                $shared_commision += $commission;
+                $received_currency += $price_coins;
                 DB::commit();
 
                 if ($sell_order_number_coins == 0) {
                     return [
-                        'message' => 'Order was completed successfully',
-                        'currency_income' => $currency_income,
+                        'message' => 'Sell order completed',
+                        'received_currency' => $received_currency,
+                        'commission' => $shared_commision,
                         'buy_orders' => $buy_orders
                     ];
                 }
@@ -247,20 +249,25 @@ class CoinController extends Controller
             }
         }
 
-        return [
+        return response([
             'message' => 'Created sell order',
-            'currency_income' => $currency_income,
+            'received_currency' => $received_currency,
+            'commission' => $shared_commision,
             'buy_orders' => $buy_orders
-        ];
+        ], 201);
     }
 
     function test(Coin $coin) {
-        $sell_order = Order::where('type', 'sell')->orderBy('price_coin')->first();
-
-        return [
-            'sell_order' => $sell_order,
-            'orders' => $this->execute_sell_order($sell_order, $coin)
-        ];
+        $view_order = new Order;
+        $view_order->table = 'view_orders';
+        
+        return $buy_orders = $view_order
+        ->where('type', 'buy')
+        ->where('price_coin', '>=', 1)
+        ->where('coin_id', $coin->id)
+        ->orderByDesc('price_coin')
+        ->orderByDesc('user_donations')
+        ->get();
     }
 
     function buy_to_bank(BuyToBankCoinRequest $request, Coin $coin)
@@ -278,10 +285,6 @@ class CoinController extends Controller
             $text_max_buy_coins_cycle = 'max_buy_coins_cycle';
             $text_max_buy_coins_game = 'max_buy_coins_game';
         }
-
-        if ($user->balance < $price_coins) {
-            throw new AccessDeniedHttpException("The price_coins is $price_coins, your balance is $user->balance");
-        }
         
         DB::transaction(function () use($user, $coin, $data, $user_pivot, $text_max_buy_coins_cycle, $text_max_buy_coins_game, $price_coins) {
             $user->update([
@@ -298,7 +301,8 @@ class CoinController extends Controller
         });
 
         return [
-            'message' => 'Success buy of coins'
+            'message' => 'Success buy coins',
+            'spent_currency' => $price_coins
         ];
     }
 
@@ -310,7 +314,7 @@ class CoinController extends Controller
         $price_coins = $data['number_coins'] * $coin->price_sale_coin;
 
         if ($coin['income'] < $coin['expenses']) {
-            throw new AccessDeniedHttpException('income should be more than expenses');
+            throw new AccessDeniedHttpException('Bank income should be more than expenses');
         }
         
         DB::transaction(function () use($user, $coin, $data, $user_pivot, $price_coins) {
@@ -326,7 +330,8 @@ class CoinController extends Controller
         });
 
         return [
-            'message' => 'Success sell of coins'
+            'message' => 'Success sell coins',
+            'received_currency' => $price_coins
         ];
     }
 }

@@ -25,7 +25,7 @@ class BuyToBankCoinRequest extends FormRequest
 
         return [
             'number_coins' => [
-                'required', 
+                'required',
                 'integer',
                 'min:1',
                 function (string $attribute, mixed $value, Closure $fail) use ($user_pivot, $user, $coin) {
@@ -33,21 +33,30 @@ class BuyToBankCoinRequest extends FormRequest
 
                     if ($this->additional_coins) {
                         if ($this->number_coins > $user_pivot->max_buy_additional_coins_cycle) {
-                            $fail("number_coins should not be greater than $user_pivot->max_buy_additional_coins_cycle (max_buy_additional_coins_cycle)");
+                            $fail("number_coins must be less than $user_pivot->max_buy_additional_coins_cycle (max_buy_additional_coins_cycle)");
                         }
                         if ($this->number_coins > $user_pivot->max_buy_additional_coins_game) {
-                            $fail("number_coins should not be greater than $user_pivot->max_buy_additional_coins_game (max_buy_additional_coins_game)");
+                            $fail("number_coins must be less than $user_pivot->max_buy_additional_coins_game (max_buy_additional_coins_game)");
                         }
                     } else {
                         if ($this->number_coins > $user_pivot->max_buy_coins_cycle) {
-                            $fail("number_coins should not be greater than $user_pivot->max_buy_coins_cycle (max_buy_coins_cycle)");
+                            $fail("number_coins must be less than $user_pivot->max_buy_coins_cycle (max_buy_coins_cycle)");
                         }
                         if ($this->number_coins > $user_pivot->max_buy_coins_game) {
-                            $fail("number_coins should not be greater than $user_pivot->max_buy_coins_game (max_buy_coins_game)");
+                            $fail("number_coins must be less than $user_pivot->max_buy_coins_game (max_buy_coins_game)");
                         }
                     }
                     if ($this->number_coins > $coin->buy_to_bank_coins) {
-                        $fail("the bank has only {$coin->buy_to_bank_coins} coins");
+                        $fail("Bank coins balance is $coin->buy_to_bank_coins");
+                    }
+
+                    if ($this->additional_coins) {
+                        $price_coins = $value * $coin->price_buy_additional_coin;
+                    } else {
+                        $price_coins = $value * $coin->price_buy_coin;
+                    }
+                    if ($user->balance < $price_coins) {
+                        $fail("Your balance is $user->balance, but you need $price_coins");
                     }
                 }
             ],

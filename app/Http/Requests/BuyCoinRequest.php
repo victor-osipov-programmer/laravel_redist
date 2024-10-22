@@ -27,9 +27,14 @@ class BuyCoinRequest extends FormRequest
                 'required', 
                 'integer',
                 'min:1',
-                // function ($attribute, $value, Closure $fail) {
-                    
-                // }
+                function ($attribute, $value, Closure $fail) {
+                    $user = $this->user();
+                    $price_coins = $this->number_coins * $this->price_coin;
+
+                    if ($user->balance < $price_coins) {
+                        $fail("Your balance is $user->balance, but you need $price_coins");
+                    }
+                }
             ],
             'price_coin' => [
                 'required',

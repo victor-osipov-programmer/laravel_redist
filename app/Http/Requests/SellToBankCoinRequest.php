@@ -36,10 +36,11 @@ class SellToBankCoinRequest extends FormRequest
                         $fail("$attribute must not be less than $coin->min_number_coins_sale (min_number_coins_sale)");
                     }
                     if ($user_pivot->coins < $value) {
-                        $fail("There are only $user_pivot->coins coins on your balance");
+                        $fail("Your coins balance is $user_pivot->coins, but you need $value");
                     }
                     if ($coin->sale_to_bank_coins < $value) {
                         $fail("There are only $coin->sale_to_bank_coins coins in the bank");
+                        $fail("Bank coins balance is $coin->sale_to_bank_coins");
                     }
                 }
             ],

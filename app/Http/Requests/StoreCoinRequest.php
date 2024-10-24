@@ -24,8 +24,8 @@ class StoreCoinRequest extends FormRequest
         return [
             'total_coins' => 'required|integer|min:100|max:1000000',
 
-            'cycle' => 'nullable|integer|min:1|max:' . config('global.year_in_seconds'),
-            'cycles' => 'nullable|integer|min:1|max:1000000',
+            'one_cycle' => 'nullable|integer|min:1|max:' . config('global.year_in_seconds'),
+            'total_cycles' => 'nullable|integer|min:1|max:1000000',
 
             'price_sale_coin' => 'required|decimal:0,2|min:0.01|max:1000000',
 

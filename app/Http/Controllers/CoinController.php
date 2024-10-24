@@ -9,10 +9,13 @@ use App\Http\Requests\SellToBankCoinRequest;
 use App\Models\Coin;
 use App\Http\Requests\StoreCoinRequest;
 use App\Http\Requests\UpdateCoinRequest;
+use App\Jobs\ResetCoinLimitsJob;
+use App\Jobs\ResetLimitsJob;
 use App\Models\Order;
 use Exception;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
@@ -44,6 +47,8 @@ class CoinController extends Controller
                 'max_buy_additional_coins_cycle' => $data['max_buy_additional_coins_cycle'],
                 'max_buy_additional_coins_game' => $data['max_buy_additional_coins_game'],
             ]);
+
+            ResetCoinLimitsJob::dispatch($coin->id)->delay(now()->addSeconds($coin->one_cycle));
         });
         
         return response([
@@ -258,16 +263,11 @@ class CoinController extends Controller
     }
 
     function test(Coin $coin) {
-        $view_order = new Order;
-        $view_order->table = 'view_orders';
-        
-        return $buy_orders = $view_order
-        ->where('type', 'buy')
-        ->where('price_coin', '>=', 1)
-        ->where('coin_id', $coin->id)
-        ->orderByDesc('price_coin')
-        ->orderByDesc('user_donations')
-        ->get();
+        $coins = Coin::all();
+
+        foreach ($coins as $coin) {
+            ResetCoinLimitsJob::dispatch($coin->id)->delay(now()->addSeconds($coin->one_cycle));
+        }
     }
 
     function buy_to_bank(BuyToBankCoinRequest $request, Coin $coin)

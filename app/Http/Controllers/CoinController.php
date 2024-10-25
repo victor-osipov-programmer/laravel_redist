@@ -21,6 +21,11 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class CoinController extends Controller
 {
+    function index() {
+        $coins = Coin::all();
+        return $coins;
+    }
+
     function store(StoreCoinRequest $request)
     {
         $data = $request->validated();

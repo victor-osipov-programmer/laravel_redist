@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/coin', [CoinController::class, 'index']);
     Route::post('/coin', [CoinController::class, 'store']);
 
     Route::middleware(СreateСoinBalance::class)->group(function () {

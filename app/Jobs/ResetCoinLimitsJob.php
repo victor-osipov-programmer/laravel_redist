@@ -36,9 +36,7 @@ class ResetCoinLimitsJob implements ShouldQueue
         if (isset($this->coin)) {
             DB::table('coins_users')->where('coin_id', $this->coin->id)->update([
                 'max_buy_coins_cycle' => $this->coin->max_buy_coins_cycle,
-                'max_buy_coins_game' => $this->coin->max_buy_coins_game,
                 'max_buy_additional_coins_cycle' => $this->coin->max_buy_coins_cycle,
-                'max_buy_additional_coins_game' => $this->coin->max_buy_coins_cycle,
             ]);
             Log::info("coin_id: {$this->coin->id}, one_cycle {$this->coin->one_cycle}");
     

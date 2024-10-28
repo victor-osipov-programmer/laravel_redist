@@ -21,9 +21,9 @@ class AuthController extends Controller
             ];
         }
 
-        return [
+        return response([
             'email' => 'The provided credentials do not match our records.',
-        ];
+        ], 401);
     }
 
     function logout(Request $request) {

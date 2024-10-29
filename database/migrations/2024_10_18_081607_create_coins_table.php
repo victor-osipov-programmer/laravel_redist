@@ -32,8 +32,8 @@ return new class extends Migration
             $table->unsignedInteger('max_buy_additional_coins_cycle');
             $table->unsignedInteger('max_buy_additional_coins_game');
 
-            $table->unsignedInteger('expenses');
-            $table->unsignedInteger('income')->default(0);
+            $table->float('expenses')->unsigned();
+            $table->float('income')->unsigned()->default(0);
             $table->unsignedInteger('min_number_coins_sale');
             $table->unsignedTinyInteger('commission')->default(1);
 

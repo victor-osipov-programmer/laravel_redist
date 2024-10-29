@@ -8,22 +8,31 @@ use App\Http\Requests\SellCoinRequest;
 use App\Http\Requests\SellToBankCoinRequest;
 use App\Models\Coin;
 use App\Http\Requests\StoreCoinRequest;
-use App\Http\Requests\UpdateCoinRequest;
 use App\Jobs\ResetCoinLimitsJob;
-use App\Jobs\ResetLimitsJob;
 use App\Models\Order;
 use Exception;
-use Illuminate\Http\Response;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class CoinController extends Controller
 {
-    function index() {
-        $coins = Coin::all();
-        return $coins;
+    function index(Request $request) {
+        $user = $request->user();
+        $coins = Coin::with('users')->get();
+        return $coins->map(function ($coin) use ($user) {
+            $coin_user = $coin->users->find($user->id);
+
+            if (isset($coin_user)) {
+                $coin->user_coins = $coin_user->pivot->coins;
+            } else {
+                $coin->user_coins = 0;
+            }
+            unset($coin->users);
+
+            return $coin;
+        });
     }
 
     function store(StoreCoinRequest $request)
@@ -114,9 +123,12 @@ class CoinController extends Controller
                 $sell_order->user->update([
                     'balance' => $sell_order->user->balance + $price_coins
                 ]);
+                $START = $buy_order->user->coins->find($coin->id)->pivot->coins;
                 $buy_order->user->coins()->updateExistingPivot($coin->id, [
                     'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
                 ]);
+                $END = $buy_order->user->coins->find($coin->id)->pivot->coins;
+                Log::info("buy_order->user->coins->find(coin->id)->pivot->coins START $START, END $END");
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
                 if ($sell_order_number_coins == 0) {

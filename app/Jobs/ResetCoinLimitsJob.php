@@ -38,7 +38,6 @@ class ResetCoinLimitsJob implements ShouldQueue
                 'max_buy_coins_cycle' => $this->coin->max_buy_coins_cycle,
                 'max_buy_additional_coins_cycle' => $this->coin->max_buy_coins_cycle,
             ]);
-            Log::info("coin_id: {$this->coin->id}, one_cycle {$this->coin->one_cycle}");
     
             ResetCoinLimitsJob::dispatch($this->coin->id)->delay(now()->addSeconds($this->coin->one_cycle));
         }

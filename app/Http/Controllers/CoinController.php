@@ -18,21 +18,26 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class CoinController extends Controller
 {
-    function index(Request $request) {
+    function index(Request $request)
+    {
         $user = $request->user();
-        $coins = Coin::with('users')->get();
-        return $coins->map(function ($coin) use ($user) {
-            $coin_user = $coin->users->find($user->id);
+        if (isset($user)) {
+            $coins = Coin::with('users')->get();
+            return $coins->map(function ($coin) use ($user) {
+                $coin_user = $coin->users->find($user->id);
 
-            if (isset($coin_user)) {
-                $coin->user_coins = $coin_user->pivot->coins;
-            } else {
-                $coin->user_coins = 0;
-            }
-            unset($coin->users);
+                if (isset($coin_user)) {
+                    $coin->user_coins = $coin_user->pivot->coins;
+                } else {
+                    $coin->user_coins = 0;
+                }
+                unset($coin->users);
 
-            return $coin;
-        });
+                return $coin;
+            });
+        } else {
+            return Coin::all();
+        }
     }
 
     function store(StoreCoinRequest $request)
@@ -53,7 +58,7 @@ class CoinController extends Controller
         $data['expenses'] = $data['total_coins'] * $data['price_sale_coin'] - $data['total_coins'] * $data['price_buy_coin'];
 
         $coin = null;
-        DB::transaction(function () use($data, $user, &$coin) {
+        DB::transaction(function () use ($data, $user, &$coin) {
             $coin = Coin::create($data);
             $coin->users()->attach($user->id, [
                 'max_buy_coins_cycle' => $data['max_buy_coins_cycle'],
@@ -64,7 +69,7 @@ class CoinController extends Controller
 
             ResetCoinLimitsJob::dispatch($coin->id)->delay(now()->addSeconds($coin->one_cycle));
         });
-        
+
         return response([
             'message' => 'Created coin',
             'data' => $coin
@@ -78,7 +83,7 @@ class CoinController extends Controller
         $price_coins = $data['number_coins'] * $data['price_coin'];
 
         $order = new Order;
-        DB::transaction(function () use($data, $user, $coin, $price_coins, &$order) {
+        DB::transaction(function () use ($data, $user, $coin, $price_coins, &$order) {
             $order = Order::create([
                 'coin_id' => $coin->id,
                 'user_id' => $user->id,
@@ -90,21 +95,22 @@ class CoinController extends Controller
                 'balance' => $user->balance - $price_coins
             ]);
         });
-        
+
         return $this->execute_buy_order($order, $coin);
     }
 
-    function execute_buy_order(Order $buy_order, $coin) {
+    function execute_buy_order(Order $buy_order, $coin)
+    {
         $view_order = new Order;
         $view_order->table = 'view_orders';
-        
+
         $sell_orders = $view_order
-        ->where('type', 'sell')
-        ->where('price_coin', '<=', $buy_order->price_coin)
-        ->where('coin_id', $coin->id)
-        ->orderBy('price_coin')
-        ->orderByDesc('user_donations')
-        ->get();
+            ->where('type', 'sell')
+            ->where('price_coin', '<=', $buy_order->price_coin)
+            ->where('coin_id', $coin->id)
+            ->orderBy('price_coin')
+            ->orderByDesc('user_donations')
+            ->get();
         $received_coins = 0;
 
 
@@ -112,23 +118,24 @@ class CoinController extends Controller
             try {
                 DB::beginTransaction();
                 $coins_turnover = min($sell_order->number_coins, $buy_order->number_coins);
-                $price_coins = $coins_turnover * $sell_order->price_coin;
+                $price_coins = $coins_turnover * $buy_order->price_coin;
                 $commission = $price_coins * ($coin->commission / 100);
                 $price_coins -= $commission;
 
+                Log::info("1coin->income $coin->income");
+                Log::info("1commission $commission");
                 $coin->update([
-                    'income' => $coin->icome + $commission
+                    'income' => $coin->income + $commission
                 ]);
+                Log::info("1coin->income $coin->income");
 
                 $sell_order->user->update([
                     'balance' => $sell_order->user->balance + $price_coins
                 ]);
-                $START = $buy_order->user->coins->find($coin->id)->pivot->coins;
                 $buy_order->user->coins()->updateExistingPivot($coin->id, [
                     'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
                 ]);
-                $END = $buy_order->user->coins->find($coin->id)->pivot->coins;
-                Log::info("buy_order->user->coins->find(coin->id)->pivot->coins START $START, END $END");
+                $buy_order->refresh();
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
                 if ($sell_order_number_coins == 0) {
@@ -139,7 +146,7 @@ class CoinController extends Controller
                         'number_coins' => $sell_order_number_coins
                     ]);
                 }
-                
+
                 $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
                 if ($buy_order_number_coins == 0) {
                     $buy_order->table = 'orders';
@@ -150,7 +157,7 @@ class CoinController extends Controller
                     ]);
                 }
 
-                
+
 
                 $received_coins += $coins_turnover;
                 DB::commit();
@@ -179,9 +186,9 @@ class CoinController extends Controller
     {
         $data = $request->validated();
         $user = $request->user();
-        
+
         $sell_order = new Order;
-        DB::transaction(function () use($data, $user, $coin, &$sell_order) {
+        DB::transaction(function () use ($data, $user, $coin, &$sell_order) {
             $sell_order = Order::create([
                 'coin_id' => $coin->id,
                 'user_id' => $user->id,
@@ -193,22 +200,23 @@ class CoinController extends Controller
                 'coins' => $user->coins->find($coin->id)->pivot->coins - $data['number_coins']
             ]);
         });
-        
+
         return $this->execute_sell_order($sell_order, $coin);
     }
 
 
-    function execute_sell_order(Order $sell_order, $coin) {
+    function execute_sell_order(Order $sell_order, $coin)
+    {
         $view_order = new Order;
         $view_order->table = 'view_orders';
-        
+
         $buy_orders = $view_order
-        ->where('type', 'buy')
-        ->where('price_coin', '>=', $sell_order->price_coin)
-        ->where('coin_id', $coin->id)
-        ->orderByDesc('price_coin')
-        ->orderByDesc('user_donations')
-        ->get();
+            ->where('type', 'buy')
+            ->where('price_coin', '>=', $sell_order->price_coin)
+            ->where('coin_id', $coin->id)
+            ->orderByDesc('price_coin')
+            ->orderByDesc('user_donations')
+            ->get();
         $received_currency = 0;
         $shared_commision = 0;
 
@@ -222,7 +230,7 @@ class CoinController extends Controller
                 $price_coins -= $commission;
 
                 $coin->update([
-                    'income' => $coin->icome + $commission
+                    'income' => $coin->income + $commission
                 ]);
 
                 $sell_order->user->update([
@@ -231,6 +239,7 @@ class CoinController extends Controller
                 $buy_order->user->coins()->updateExistingPivot($coin->id, [
                     'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
                 ]);
+                $buy_order->refresh();
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
                 if ($sell_order_number_coins == 0) {
@@ -241,7 +250,7 @@ class CoinController extends Controller
                         'number_coins' => $sell_order_number_coins
                     ]);
                 }
-                
+
                 $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
                 if ($buy_order_number_coins == 0) {
                     $buy_order->table = 'orders';
@@ -252,7 +261,7 @@ class CoinController extends Controller
                     ]);
                 }
 
-                
+
                 $shared_commision += $commission;
                 $received_currency += $price_coins;
                 DB::commit();
@@ -279,7 +288,8 @@ class CoinController extends Controller
         ], 201);
     }
 
-    function test(Coin $coin) {
+    function test(Coin $coin)
+    {
         $coins = Coin::all();
 
         foreach ($coins as $coin) {
@@ -290,7 +300,7 @@ class CoinController extends Controller
     function buy_to_bank(BuyToBankCoinRequest $request, Coin $coin)
     {
         $data = $request->validated();
-        $user = $request->user(); 
+        $user = $request->user();
         $user_pivot = $user->coins->find($coin->id)->pivot;
 
         if ($data['additional_coins']) {
@@ -302,8 +312,8 @@ class CoinController extends Controller
             $text_max_buy_coins_cycle = 'max_buy_coins_cycle';
             $text_max_buy_coins_game = 'max_buy_coins_game';
         }
-        
-        DB::transaction(function () use($user, $coin, $data, $user_pivot, $text_max_buy_coins_cycle, $text_max_buy_coins_game, $price_coins) {
+
+        DB::transaction(function () use ($user, $coin, $data, $user_pivot, $text_max_buy_coins_cycle, $text_max_buy_coins_game, $price_coins) {
             $user->update([
                 'balance' => $user->balance - $price_coins
             ]);
@@ -326,15 +336,15 @@ class CoinController extends Controller
     function sell_to_bank(SellToBankCoinRequest $request, Coin $coin)
     {
         $data = $request->validated();
-        $user = $request->user(); 
+        $user = $request->user();
         $user_pivot = $user->coins->find($coin->id)->pivot;
         $price_coins = $data['number_coins'] * $coin->price_sale_coin;
 
         if ($coin['income'] < $coin['expenses']) {
             throw new AccessDeniedHttpException('Bank income should be more than expenses');
         }
-        
-        DB::transaction(function () use($user, $coin, $data, $user_pivot, $price_coins) {
+
+        DB::transaction(function () use ($user, $coin, $data, $user_pivot, $price_coins) {
             $user->coins()->updateExistingPivot($coin->id, [
                 'coins' => $user_pivot->coins - $data['number_coins'],
             ]);

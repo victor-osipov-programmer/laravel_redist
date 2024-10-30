@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('coins', function (Blueprint $table) {
             $table->id();
 
+            $table->string('name');
             $table->unsignedInteger('total_coins');
             $table->unsignedInteger('buy_to_bank_coins');
             $table->unsignedInteger('sale_to_bank_coins');

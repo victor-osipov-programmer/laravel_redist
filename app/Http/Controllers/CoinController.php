@@ -8,6 +8,8 @@ use App\Http\Requests\SellCoinRequest;
 use App\Http\Requests\SellToBankCoinRequest;
 use App\Models\Coin;
 use App\Http\Requests\StoreCoinRequest;
+use App\Jobs\ExecuteBuyOrderJob;
+use App\Jobs\ExecuteSellOrderJob;
 use App\Jobs\ResetCoinLimitsJob;
 use App\Models\Order;
 use Exception;
@@ -96,89 +98,10 @@ class CoinController extends Controller
             ]);
         });
 
-        return $this->execute_buy_order($order, $coin);
-    }
-
-    function execute_buy_order(Order $buy_order, $coin)
-    {
-        $view_order = new Order;
-        $view_order->table = 'view_orders';
-
-        $sell_orders = $view_order
-            ->where('type', 'sell')
-            ->where('price_coin', '<=', $buy_order->price_coin)
-            ->where('coin_id', $coin->id)
-            ->orderBy('price_coin')
-            ->orderByDesc('user_donations')
-            ->get();
-        $received_coins = 0;
-
-
-        foreach ($sell_orders as $sell_order) {
-            try {
-                DB::beginTransaction();
-                $coins_turnover = min($sell_order->number_coins, $buy_order->number_coins);
-                $price_coins = $coins_turnover * $buy_order->price_coin;
-                $commission = $price_coins * ($coin->commission / 100);
-                $price_coins -= $commission;
-
-                Log::info("1coin->income $coin->income");
-                Log::info("1commission $commission");
-                $coin->update([
-                    'income' => $coin->income + $commission
-                ]);
-                Log::info("1coin->income $coin->income");
-
-                $sell_order->user->update([
-                    'balance' => $sell_order->user->balance + $price_coins
-                ]);
-                $buy_order->user->coins()->updateExistingPivot($coin->id, [
-                    'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
-                ]);
-                $buy_order->refresh();
-
-                $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
-                if ($sell_order_number_coins == 0) {
-                    $sell_order->table = 'orders';
-                    $sell_order->delete();
-                } else {
-                    $sell_order->update([
-                        'number_coins' => $sell_order_number_coins
-                    ]);
-                }
-
-                $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
-                if ($buy_order_number_coins == 0) {
-                    $buy_order->table = 'orders';
-                    $buy_order->delete();
-                } else {
-                    $buy_order->update([
-                        'number_coins' => $buy_order_number_coins
-                    ]);
-                }
-
-
-
-                $received_coins += $coins_turnover;
-                DB::commit();
-
-                if ($buy_order_number_coins == 0) {
-                    return [
-                        'message' => 'Buy order completed',
-                        'received_coins' => $received_coins,
-                        'sell_orders' => $sell_orders
-                    ];
-                }
-            } catch (Exception $e) {
-                DB::rollBack();
-                throw $e;
-            }
-        }
+        ExecuteBuyOrderJob::dispatch($order, $coin);
 
         return response([
-            'message' => 'Created buy order',
-            'received_coins' => $received_coins,
-            'sell_orders' => $sell_orders
+            'message' => 'Created buy order'
         ], 201);
     }
 
@@ -201,90 +124,10 @@ class CoinController extends Controller
             ]);
         });
 
-        return $this->execute_sell_order($sell_order, $coin);
-    }
-
-
-    function execute_sell_order(Order $sell_order, $coin)
-    {
-        $view_order = new Order;
-        $view_order->table = 'view_orders';
-
-        $buy_orders = $view_order
-            ->where('type', 'buy')
-            ->where('price_coin', '>=', $sell_order->price_coin)
-            ->where('coin_id', $coin->id)
-            ->orderByDesc('price_coin')
-            ->orderByDesc('user_donations')
-            ->get();
-        $received_currency = 0;
-        $shared_commision = 0;
-
-
-        foreach ($buy_orders as $buy_order) {
-            try {
-                DB::beginTransaction();
-                $coins_turnover = min($sell_order->number_coins, $buy_order->number_coins);
-                $price_coins = $coins_turnover * $buy_order->price_coin;
-                $commission = $price_coins * ($coin->commission / 100);
-                $price_coins -= $commission;
-
-                $coin->update([
-                    'income' => $coin->income + $commission
-                ]);
-
-                $sell_order->user->update([
-                    'balance' => $sell_order->user->balance + $price_coins
-                ]);
-                $buy_order->user->coins()->updateExistingPivot($coin->id, [
-                    'coins' => $buy_order->user->coins->find($coin->id)->pivot->coins + $coins_turnover
-                ]);
-                $buy_order->refresh();
-
-                $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
-                if ($sell_order_number_coins == 0) {
-                    $sell_order->table = 'orders';
-                    $sell_order->delete();
-                } else {
-                    $sell_order->update([
-                        'number_coins' => $sell_order_number_coins
-                    ]);
-                }
-
-                $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
-                if ($buy_order_number_coins == 0) {
-                    $buy_order->table = 'orders';
-                    $buy_order->delete();
-                } else {
-                    $buy_order->update([
-                        'number_coins' => $buy_order_number_coins
-                    ]);
-                }
-
-
-                $shared_commision += $commission;
-                $received_currency += $price_coins;
-                DB::commit();
-
-                if ($sell_order_number_coins == 0) {
-                    return [
-                        'message' => 'Sell order completed',
-                        'received_currency' => $received_currency,
-                        'commission' => $shared_commision,
-                        'buy_orders' => $buy_orders
-                    ];
-                }
-            } catch (Exception $e) {
-                DB::rollBack();
-                throw $e;
-            }
-        }
+        ExecuteSellOrderJob::dispatch($sell_order, $coin);
 
         return response([
-            'message' => 'Created sell order',
-            'received_currency' => $received_currency,
-            'commission' => $shared_commision,
-            'buy_orders' => $buy_orders
+            'message' => 'Created sell order'
         ], 201);
     }
 

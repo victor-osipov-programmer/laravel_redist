@@ -18,10 +18,9 @@ class ExecuteBuyOrderJob implements ShouldQueue
     public $buy_order;
     public $coin;
 
-    public function __construct(Order $buy_order, $coin)
+    public function __construct(Order $buy_order)
     {
         $this->buy_order = $buy_order;
-        $this->coin = $coin;
     }
 
     /**
@@ -30,7 +29,7 @@ class ExecuteBuyOrderJob implements ShouldQueue
     public function handle(): void
     {
         $buy_order = $this->buy_order;
-        $coin = $this->coin;
+        $coin = $this->buy_order->coin;
         $view_order = new Order;
         $view_order->table = 'view_orders';
 
@@ -68,23 +67,24 @@ class ExecuteBuyOrderJob implements ShouldQueue
                 $buy_order->refresh();
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
+                $sell_order->update([
+                    'number_coins' => $sell_order_number_coins,
+                    'status' => $sell_order_number_coins == 0 ? 'completed' : null
+                ]);
                 if ($sell_order_number_coins == 0) {
                     $sell_order->table = 'orders';
                     $sell_order->delete();
-                } else {
-                    $sell_order->update([
-                        'number_coins' => $sell_order_number_coins
-                    ]);
                 }
 
                 $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
+                
+                $buy_order->update([
+                    'number_coins' => $buy_order_number_coins,
+                    'status' => $buy_order_number_coins == 0 ? 'completed' : null
+                ]);
                 if ($buy_order_number_coins == 0) {
                     $buy_order->table = 'orders';
                     $buy_order->delete();
-                } else {
-                    $buy_order->update([
-                        'number_coins' => $buy_order_number_coins
-                    ]);
                 }
 
 
@@ -92,17 +92,21 @@ class ExecuteBuyOrderJob implements ShouldQueue
                 $received_coins += $coins_turnover;
                 DB::commit();
 
-                Buy::dispatch($coin, $buy_order, [
+                Buy::dispatch($buy_order, [
                     'number_coins' => $coins_turnover,
                     'price_coins' => $price_coins_without_commission
                 ]);
-                Sell::dispatch($coin, $sell_order, [
+                Sell::dispatch($sell_order, [
                     'number_coins' => $coins_turnover,
                     'price_coins' => $price_coins_without_commission,
                     'commission' => $commission
                 ]);
 
                 if ($buy_order_number_coins == 0) {
+                    Buy::dispatch($buy_order, [
+                        'number_coins' => $buy_order->initial_number_coins,
+                        'price_coins' => $price_coins_without_commission
+                    ]);
                     // return [
                     //     'message' => 'Buy order completed',
                     //     'received_coins' => $received_coins,

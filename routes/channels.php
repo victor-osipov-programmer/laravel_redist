@@ -4,6 +4,8 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
-Broadcast::channel('orders.{orderId}', function (User $user, int $orderId) {
-    return $user->id === Order::findOrNew($orderId)->user_id;
+Broadcast::routes(['middleware' => ['web', 'auth']]);
+
+Broadcast::channel('users.{user_id}', function (User $user, int $user_id) {
+    return $user->id === $user_id;
 });

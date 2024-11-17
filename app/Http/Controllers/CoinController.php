@@ -91,6 +91,7 @@ class CoinController extends Controller
                 'user_id' => $user->id,
                 'type' => 'buy',
                 'number_coins' => $data['number_coins'],
+                'initial_number_coins' => $data['number_coins'],
                 'price_coin' => $data['price_coin'],
             ]);
             $user->update([
@@ -98,10 +99,11 @@ class CoinController extends Controller
             ]);
         });
 
-        ExecuteBuyOrderJob::dispatch($order, $coin);
+        ExecuteBuyOrderJob::dispatch($order);
 
         return response([
-            'message' => 'Created buy order'
+            'message' => 'Created buy order',
+            'order_id' => $order->id
         ], 201);
     }
 
@@ -117,6 +119,7 @@ class CoinController extends Controller
                 'user_id' => $user->id,
                 'type' => 'sell',
                 'number_coins' => $data['number_coins'],
+                'initial_number_coins' => $data['number_coins'],
                 'price_coin' => $data['price_coin'],
             ]);
             $user->coins()->updateExistingPivot($coin->id, [
@@ -124,10 +127,11 @@ class CoinController extends Controller
             ]);
         });
 
-        ExecuteSellOrderJob::dispatch($sell_order, $coin);
+        ExecuteSellOrderJob::dispatch($sell_order);
 
         return response([
-            'message' => 'Created sell order'
+            'message' => 'Created sell order',
+            'order_id' => $sell_order->id
         ], 201);
     }
 

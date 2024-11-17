@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ExecuteSellOrderJob implements ShouldQueue
 {
@@ -18,10 +19,9 @@ class ExecuteSellOrderJob implements ShouldQueue
     public $sell_order;
     public $coin;
 
-    public function __construct(Order $sell_order, $coin)
+    public function __construct(Order $sell_order)
     {
         $this->sell_order = $sell_order;
-        $this->coin = $coin;
     }
 
     /**
@@ -30,9 +30,12 @@ class ExecuteSellOrderJob implements ShouldQueue
     public function handle(): void
     {
         $sell_order = $this->sell_order;
-        $coin = $this->coin;
+        $coin = $this->sell_order->coin;
         $view_order = new Order;
         $view_order->table = 'view_orders';
+
+        Log::info($sell_order);
+        Log::info($sell_order->coin);
 
         $buy_orders = $view_order
             ->where('type', 'buy')
@@ -66,23 +69,23 @@ class ExecuteSellOrderJob implements ShouldQueue
                 $buy_order->refresh();
 
                 $sell_order_number_coins = $sell_order->number_coins - $coins_turnover;
+                $sell_order->update([
+                    'number_coins' => $sell_order_number_coins,
+                    'status' => $sell_order_number_coins == 0 ? 'completed' : null
+                ]);
                 if ($sell_order_number_coins == 0) {
                     $sell_order->table = 'orders';
                     $sell_order->delete();
-                } else {
-                    $sell_order->update([
-                        'number_coins' => $sell_order_number_coins
-                    ]);
                 }
 
                 $buy_order_number_coins = $buy_order->number_coins - $coins_turnover;
+                $buy_order->update([
+                    'number_coins' => $buy_order_number_coins,
+                    'status' => $buy_order_number_coins == 0 ? 'completed' : null
+                ]);
                 if ($buy_order_number_coins == 0) {
                     $buy_order->table = 'orders';
                     $buy_order->delete();
-                } else {
-                    $buy_order->update([
-                        'number_coins' => $buy_order_number_coins
-                    ]);
                 }
 
 
@@ -90,11 +93,11 @@ class ExecuteSellOrderJob implements ShouldQueue
                 $received_currency += $price_coins;
                 DB::commit();
 
-                Buy::dispatch($coin, $buy_order, [
+                Buy::dispatch($buy_order, [
                     'number_coins' => $coins_turnover,
                     'price_coins' => $price_coins_without_commission
                 ]);
-                Sell::dispatch($coin, $sell_order, [
+                Sell::dispatch($sell_order, [
                     'number_coins' => $coins_turnover,
                     'price_coins' => $price_coins_without_commission,
                     'commission' => $commission

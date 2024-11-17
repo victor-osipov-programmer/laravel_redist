@@ -16,9 +16,7 @@ class Buy implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-
     public function __construct(
-        public Coin $coin,
         public Order $order,
         public $data
     ) {}
@@ -31,7 +29,15 @@ class Buy implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('orders.' . $this->order->id),
+            new PrivateChannel('users.' . $this->order->user_id),
+        ];
+    }
+
+    function broadcastWith() {
+        
+        return [
+            'order' => $this->order->load('coin'),
+            'data' => $this->data,
         ];
     }
 }

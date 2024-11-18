@@ -90,8 +90,6 @@ class ExecuteBuyOrderJob implements ShouldQueue
 
 
                 $received_coins += $coins_turnover;
-                DB::commit();
-
                 Buy::dispatch($buy_order, [
                     'number_coins' => $coins_turnover,
                     'price_coins' => $price_coins_without_commission
@@ -102,17 +100,7 @@ class ExecuteBuyOrderJob implements ShouldQueue
                     'commission' => $commission
                 ]);
 
-                if ($buy_order_number_coins == 0) {
-                    Buy::dispatch($buy_order, [
-                        'number_coins' => $buy_order->initial_number_coins,
-                        'price_coins' => $price_coins_without_commission
-                    ]);
-                    // return [
-                    //     'message' => 'Buy order completed',
-                    //     'received_coins' => $received_coins,
-                    //     'sell_orders' => $sell_orders
-                    // ];
-                }
+                DB::commit();
             } catch (Exception $e) {
                 DB::rollBack();
                 throw $e;

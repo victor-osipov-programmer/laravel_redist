@@ -91,7 +91,6 @@ class ExecuteSellOrderJob implements ShouldQueue
 
                 $shared_commision += $commission;
                 $received_currency += $price_coins;
-                DB::commit();
 
                 Buy::dispatch($buy_order, [
                     'number_coins' => $coins_turnover,
@@ -102,15 +101,7 @@ class ExecuteSellOrderJob implements ShouldQueue
                     'price_coins' => $price_coins_without_commission,
                     'commission' => $commission
                 ]);
-
-                if ($sell_order_number_coins == 0) {
-                    // return [
-                    //     'message' => 'Sell order completed',
-                    //     'received_currency' => $received_currency,
-                    //     'commission' => $shared_commision,
-                    //     'buy_orders' => $buy_orders
-                    // ];
-                }
+                DB::commit();
             } catch (Exception $e) {
                 DB::rollBack();
                 throw $e;

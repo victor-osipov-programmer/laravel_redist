@@ -47,4 +47,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Coin::class, 'coins_users')->withPivot('coins', 'max_buy_coins_cycle', 'max_buy_coins_game', 'max_buy_additional_coins_cycle', 'max_buy_additional_coins_game');
     }
+
+
+    function orders() {
+        return $this->hasMany(Order::class, 'user_id');
+    }
 }

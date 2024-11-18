@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CoinController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\СreateСoinBalance;
 use Illuminate\Http\Request;
@@ -21,4 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     }); 
     
     Route::post('/coin/{coin}/test', [CoinController::class, 'test']);
+    Route::get('/order', [OrderController::class, 'index']);
+    Route::get('/order', [OrderController::class, 'index']);
+    Route::get('/order/{order}/cancel', [OrderController::class, 'cancel']);
 });

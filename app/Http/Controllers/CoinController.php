@@ -13,6 +13,7 @@ use App\Jobs\ExecuteSellOrderJob;
 use App\Jobs\ResetCoinLimitsJob;
 use App\Models\Order;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,22 +24,14 @@ class CoinController extends Controller
     function index(Request $request)
     {
         $user = $request->user();
+        
         if (isset($user)) {
-            $coins = Coin::with('users')->get();
-            return $coins->map(function ($coin) use ($user) {
-                $coin_user = $coin->users->find($user->id);
-
-                if (isset($coin_user)) {
-                    $coin->user_coins = $coin_user->pivot->coins;
-                } else {
-                    $coin->user_coins = 0;
-                }
-                unset($coin->users);
-
-                return $coin;
-            });
+            $table_coin = new Coin();
+            $table_coin->appends = ['user_coins'];
+            $coins = $table_coin->with('users')->paginate(1);
+            return $coins;
         } else {
-            return Coin::all();
+            return Coin::paginate(1);
         }
     }
 

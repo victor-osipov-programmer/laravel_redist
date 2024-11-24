@@ -29,7 +29,7 @@ class CoinController extends Controller
         
         if (isset($user)) {
             /** @disregard */
-            Coin::with('users')->paginate(1)->through(fn ($reply) => $reply->append(['user_coins']));
+            return Coin::with('users')->paginate(1)->through(fn ($reply) => $reply->append(['user_coins']));
         } else {
             return Coin::paginate(1);
         }

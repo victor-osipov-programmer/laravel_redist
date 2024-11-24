@@ -13,8 +13,10 @@ use App\Jobs\ExecuteSellOrderJob;
 use App\Jobs\ResetCoinLimitsJob;
 use App\Models\Order;
 use Exception;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -26,10 +28,8 @@ class CoinController extends Controller
         $user = $request->user();
         
         if (isset($user)) {
-            $table_coin = new Coin();
-            $table_coin->appends = ['user_coins'];
-            $coins = $table_coin->with('users')->paginate(1);
-            return $coins;
+            /** @disregard */
+            Coin::with('users')->paginate(1)->through(fn ($reply) => $reply->append(['user_coins']));
         } else {
             return Coin::paginate(1);
         }

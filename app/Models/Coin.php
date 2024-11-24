@@ -31,5 +31,10 @@ class Coin extends Model
         );
     }
 
+
+    function orders() {
+        return $this->hasMany(Order::class, 'coin_id');
+    }
+
     // protected $appends = ['user_coins'];
 }

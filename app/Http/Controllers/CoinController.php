@@ -25,13 +25,16 @@ class CoinController extends Controller
 {
     function index(Request $request)
     {
+        $data = $request->validate([
+            'per_page' => ['required', 'integer'],
+        ]);
         $user = $request->user();
         
         if (isset($user)) {
             /** @disregard */
-            return Coin::with('users')->paginate(1)->through(fn ($reply) => $reply->append(['user_coins']));
+            return Coin::with(['users', 'orders'])->paginate($data['per_page'])->through(fn ($reply) => $reply->append(['user_coins']));
         } else {
-            return Coin::paginate(1);
+            return Coin::paginate($data['per_page']);
         }
     }
 

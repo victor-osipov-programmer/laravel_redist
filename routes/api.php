@@ -13,6 +13,7 @@ Route::get('/coin', [CoinController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/coin', [CoinController::class, 'store']);
     Route::get('/user', [UserController::class, 'show']);
+    Route::post('/user/name', [UserController::class, 'update_name']);
 
     Route::middleware(СreateСoinBalance::class)->group(function () {
         Route::post('/coin/{coin}/buy', [CoinController::class, 'buy']);

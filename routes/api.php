@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CoinController;
+use App\Http\Controllers\EmailVerificationNotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VerifyEmailController;
 use App\Http\Middleware\СreateСoinBalance;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/coin', [CoinController::class, 'index']);
@@ -27,3 +30,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/order', [OrderController::class, 'index']);
     Route::get('/order/{order}/cancel', [OrderController::class, 'cancel']);
 });
+
+Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])->middleware('auth');
+Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)->middleware(['auth', 'signed'])->name('verification.verify');

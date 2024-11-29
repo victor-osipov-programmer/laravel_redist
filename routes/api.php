@@ -16,7 +16,8 @@ Route::get('/coin', [CoinController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/coin', [CoinController::class, 'store']);
     Route::get('/user', [UserController::class, 'show']);
-    Route::post('/user/name', [UserController::class, 'update_name']);
+    Route::patch('/user/name', [UserController::class, 'update_name']);
+    Route::patch('/user/email', [UserController::class, 'update_email']);
 
     Route::middleware(СreateСoinBalance::class)->group(function () {
         Route::post('/coin/{coin}/buy', [CoinController::class, 'buy']);
@@ -32,4 +33,4 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])->middleware('auth');
-Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)->middleware(['auth', 'signed'])->name('verification.verify');
+Route::get('/email/verify/{id}/{hash}', VerifyEmailController::class)->middleware(['auth:sanctum', 'signed'])->name('verification.verify');

@@ -184,7 +184,7 @@ class CoinController extends Controller
         $price_coins = $data['number_coins'] * $coin->price_sale_coin;
 
         if ($coin['income'] < $coin['expenses']) {
-            throw new AccessDeniedHttpException('Bank income should be more than expenses');
+            throw new AccessDeniedHttpException('Доход банка должен быть больше расходов');
         }
 
         DB::transaction(function () use ($user, $coin, $data, $user_pivot, $price_coins) {

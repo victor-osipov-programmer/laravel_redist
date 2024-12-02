@@ -17,6 +17,6 @@ class VerifyEmailController extends Controller
         
         $user->markEmailAsVerified();
 
-        return redirect(env('FRONTED_URL'));
+        return redirect()->away(env('FRONTED_URL'));
     }
 }

@@ -24,7 +24,7 @@ class BuyCoinRequest extends FormRequest
     {
         return [
             'number_coins' => [
-                'required', 
+                'required',
                 'integer',
                 'min:1',
                 function ($attribute, $value, Closure $fail) {
@@ -32,7 +32,7 @@ class BuyCoinRequest extends FormRequest
                     $price_coins = $this->number_coins * $this->price_coin;
 
                     if ($user->balance < $price_coins) {
-                        $fail("Your balance is $user->balance, but you need $price_coins");
+                        $fail("Ваш баланс $user->balance, а вам нужно $price_coins");
                     }
                 }
             ],

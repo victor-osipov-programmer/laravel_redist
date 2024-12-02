@@ -28,19 +28,18 @@ class SellToBankCoinRequest extends FormRequest
 
         return [
             'number_coins' => [
-                'required', 
+                'required',
                 'integer',
                 'min:1',
                 function (string $attribute, mixed $value, Closure $fail) use ($user_pivot, $coin) {
                     if ($value < $coin->min_number_coins_sale) {
-                        $fail("$attribute must not be less than $coin->min_number_coins_sale (min_number_coins_sale)");
+                        $fail("$attribute должно быть не менее $coin->min_number_coins_sale (мин. кол-во монет для продажи)");
                     }
                     if ($user_pivot->coins < $value) {
-                        $fail("Your coins balance is $user_pivot->coins, but you need $value");
+                        $fail("Ваш баланс монет $user_pivot->coins, а вам нужно $value");
                     }
                     if ($coin->sale_to_bank_coins < $value) {
-                        $fail("There are only $coin->sale_to_bank_coins coins in the bank");
-                        $fail("Bank coins balance is $coin->sale_to_bank_coins");
+                        $fail("В банке есть только $coin->sale_to_bank_coins монет");
                     }
                 }
             ],

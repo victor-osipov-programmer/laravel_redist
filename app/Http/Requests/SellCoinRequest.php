@@ -24,24 +24,18 @@ class SellCoinRequest extends FormRequest
     {
         return [
             'number_coins' => [
-                'required', 
+                'required',
                 'integer',
                 'min:1',
-                function ($attribute, $value, Closure $fail)  {
+                function ($attribute, $value, Closure $fail) {
                     $user = $this->user();
                     $coin = $this->route('coin');
 
                     if ($user->coins->find($coin->id)->pivot->coins < $value) {
                         $coins = $user->coins->find($coin->id)->pivot->coins;
 
-                        $fail("Your coins balance is $coins, but you need $value");
+                        $fail("Ваш баланс монет $coins, а вам нужно $value");
                     }
-
-                    // $price_coins = $this->number_coins * $this->price_coin;
-
-                    // if ($user->balance < $price_coins) {
-                    //     $fail("Your balance is $user->balance, but you need $price_coins");
-                    // }
                 }
             ],
             'price_coin' => [

@@ -10,13 +10,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class BuyToBankCoinRequest extends FormRequest
 {
-    
+
     public function authorize(): bool
     {
         return true;
     }
 
-    
+
     public function rules(User $user): array
     {
         $user = $this->user();
@@ -33,21 +33,21 @@ class BuyToBankCoinRequest extends FormRequest
 
                     if ($this->additional_coins) {
                         if ($this->number_coins > $user_pivot->max_buy_additional_coins_cycle) {
-                            $fail("number_coins must be less than $user_pivot->max_buy_additional_coins_cycle (max_buy_additional_coins_cycle)");
+                            $fail("Кол-во монет должно быть не больше $user_pivot->max_buy_additional_coins_cycle (макс. покупка доп. монет за цикл)");
                         }
                         if ($this->number_coins > $user_pivot->max_buy_additional_coins_game) {
-                            $fail("number_coins must be less than $user_pivot->max_buy_additional_coins_game (max_buy_additional_coins_game)");
+                            $fail("Кол-во монет должно быть не больше $user_pivot->max_buy_additional_coins_game (макс. покупка доп. монет за игру)");
                         }
                     } else {
                         if ($this->number_coins > $user_pivot->max_buy_coins_cycle) {
-                            $fail("number_coins must be less than $user_pivot->max_buy_coins_cycle (max_buy_coins_cycle)");
+                            $fail("Кол-во монет должно быть не больше $user_pivot->max_buy_coins_cycle (макс. покупка монет за цикл)");
                         }
                         if ($this->number_coins > $user_pivot->max_buy_coins_game) {
-                            $fail("number_coins must be less than $user_pivot->max_buy_coins_game (max_buy_coins_game)");
+                            $fail("Кол-во монет должно быть не больше $user_pivot->max_buy_coins_game (макс. покупка монет за игру)");
                         }
                     }
                     if ($this->number_coins > $coin->buy_to_bank_coins) {
-                        $fail("Bank coins balance is $coin->buy_to_bank_coins");
+                        $fail("В банке всего $coin->buy_to_bank_coins монет");
                     }
 
                     if ($this->additional_coins) {
@@ -56,7 +56,7 @@ class BuyToBankCoinRequest extends FormRequest
                         $price_coins = $value * $coin->price_buy_coin;
                     }
                     if ($user->balance < $price_coins) {
-                        $fail("Your balance is $user->balance, but you need $price_coins");
+                        $fail("Ваш баланс $user->balance, а вам нужно $price_coins");
                     }
                 }
             ],

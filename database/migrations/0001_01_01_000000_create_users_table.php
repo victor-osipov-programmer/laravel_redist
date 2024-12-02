@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('password');
             $table->float('balance')->unsigned()->default(0);
             $table->unsignedInteger('donations')->default(0);
+            $table->integer('code')->nullable();
 
             $table->rememberToken();
             $table->timestamps();

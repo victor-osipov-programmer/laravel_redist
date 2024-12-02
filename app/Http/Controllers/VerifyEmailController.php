@@ -17,8 +17,6 @@ class VerifyEmailController extends Controller
         
         $user->markEmailAsVerified();
 
-        return response([
-            'message' => 'Email has been successfully confirmed'
-        ]);
+        return redirect(env('FRONTED_URL'));
     }
 }

@@ -22,7 +22,7 @@ class StoreCoinRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'min:1'],
+            'name' => ['required', 'string', 'min:1', 'max:15'],
             'total_coins' => 'required|integer|min:100|max:1000000',
 
             'one_cycle' => 'nullable|integer|min:1|max:' . config('global.year_in_seconds'),

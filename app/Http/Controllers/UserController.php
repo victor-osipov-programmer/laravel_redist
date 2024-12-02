@@ -69,15 +69,36 @@ class UserController extends Controller
 
     function update_email(Request $request) {
         $data = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', Rule::unique('users')],
+            'code' => ['required', 'digits:6', Rule::exists('users')]
         ]);
+        $user = $request->user();
 
+        $user->update([
+            'email' => $data['email'],
+            'code' => null,
+            'email_verified_at' => null
+        ]);
+        $user->sendEmailVerificationNotification();
+
+        return [
+            'message' => 'Confirm the new email'
+        ];
+    }
+
+
+    function get_code(Request $request) {
+        $user = $request->user();
+        
         $code = rand(100000, 999999);
+        $user->update([
+            'code' => $code
+        ]);
 
         Mail::to($request->user())->queue(new MailCode($code));
 
         return [
-            'message' => 'Enter the code'
+            'message' => 'The confirmation code was sent to the old email'
         ];
     }
 }

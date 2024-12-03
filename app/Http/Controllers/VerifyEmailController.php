@@ -11,12 +11,11 @@ class VerifyEmailController extends Controller
     public function __invoke(Request $request, int $id)
     {
         $user = User::findOrFail($id);
-        if ($user->hasVerifiedEmail()) {
-            return response(['message' => 'The email has already been confirmed']);
-        }
         
-        $user->markEmailAsVerified();
+        if (!$user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
 
-        return redirect()->away(env('FRONTED_URL'));
+        return redirect()->away(config('app.frontend_url'));
     }
 }
